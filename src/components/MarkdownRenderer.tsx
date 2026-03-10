@@ -14,8 +14,9 @@ interface MarkdownRendererProps {
  * 优化了换行符处理，避免过大的段落间距
  */
 export function MarkdownRenderer({ content, className = '' }: MarkdownRendererProps) {
-  // 预处理内容：将字面量的 \n 转换为真正的换行符
-  // 同时将多个连续换行符压缩为单个换行符，避免间距过大
+  // 预处理内容：
+  // 1. 将字面量的 \n 转换为真正的换行符
+  // 2. 将多个连续换行符压缩为两个换行符（保留段落分隔）
   const processedContent = content
     .replace(/\\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')

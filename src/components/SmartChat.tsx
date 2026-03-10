@@ -1,10 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { flushSync } from 'react-dom'
-import { Bot, User, Send, Loader2, RefreshCw, Paperclip, X, FileText, Plus, Globe, BookOpen, Settings2, Image as ImageIcon, Copy, Check, Edit2, ArrowDown } from 'lucide-react'
+import { Bot, User, Send, Loader2, RefreshCw, Paperclip, X, FileText, Plus, Globe, BookOpen, Copy, Check, Edit2, ArrowDown } from 'lucide-react'
 import type { ChatMessage } from '../types/chat'
 import { MarkdownRenderer } from './MarkdownRenderer'
 import { cn } from '../lib/utils'
 import { apiService } from '../services/api'
+import { QuestionNavigator } from './QuestionNavigator'
 
 interface SmartChatProps {
   onNewConversation?: () => void
@@ -54,6 +54,8 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [showScrollToBottom, setShowScrollToBottom] = useState(false)
+  const [currentUserMessageIndex, setCurrentUserMessageIndex] = useState(0)
+  const messageRefs = useRef<(HTMLDivElement | null)[]>([])
   const sessionIdRef = useRef<string>(
     (() => {
       try {
@@ -146,17 +148,13 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
       
       for await (const chunk of stream) {
         accumulatedContent += chunk
-        
-        // 使用 flushSync 强制同步更新，确保流式渲染生效
-        flushSync(() => {
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantMessageId
-                ? { ...msg, content: accumulatedContent }
-                : msg
-            )
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId
+              ? { ...msg, content: accumulatedContent }
+              : msg
           )
-        })
+        )
       }
     } catch (error) {
       console.error('Stream error:', error)
@@ -310,15 +308,13 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
       for await (const chunk of stream) {
         accumulatedContent += chunk
         
-        flushSync(() => {
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === newAssistantMessageId
-                ? { ...msg, content: accumulatedContent }
-                : msg
-            )
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === newAssistantMessageId
+              ? { ...msg, content: accumulatedContent }
+              : msg
           )
-        })
+        )
       }
     } catch (error) {
       console.error('Stream error:', error)
@@ -374,15 +370,13 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
       for await (const chunk of stream) {
         accumulatedContent += chunk
         
-        flushSync(() => {
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === newAssistantMessageId
-                ? { ...msg, content: accumulatedContent }
-                : msg
-            )
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === newAssistantMessageId
+              ? { ...msg, content: accumulatedContent }
+              : msg
           )
-        })
+        )
       }
     } catch (error) {
       console.error('Stream error:', error)
@@ -430,6 +424,68 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
   }, [])
 
   /**
+   * 跳转到指定消息
+   */
+  const handleJumpToMessage = useCallback((index: number) => {
+    if (messageRefs.current[index]) {
+      messageRefs.current[index]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      })
+      
+      // 更新当前用户消息索引
+      let userMsgCount = 0
+      for (let i = 0; i <= index; i++) {
+        if (messages[i]?.role === 'user') {
+          userMsgCount++
+        }
+      }
+      setCurrentUserMessageIndex(userMsgCount - 1)
+    }
+  }, [messages])
+
+  /**
+   * 监听滚动，更新当前用户消息索引
+   */
+  useEffect(() => {
+    const container = messagesContainerRef.current
+    if (!container || messages.length === 0) return
+
+    const updateCurrentIndex = () => {
+      const containerRect = container.getBoundingClientRect()
+      const containerCenter = containerRect.top + containerRect.height / 2
+      
+      let lastVisibleUserIndex = -1
+      let userMsgCount = 0
+      
+      for (let i = 0; i < messages.length; i++) {
+        const msg = messages[i]
+        if (msg.role === 'user') {
+          const ref = messageRefs.current[i]
+          if (ref) {
+            const rect = ref.getBoundingClientRect()
+            if (rect.top <= containerCenter) {
+              lastVisibleUserIndex = userMsgCount
+            }
+          }
+          userMsgCount++
+        }
+      }
+      
+      if (lastVisibleUserIndex >= 0 && lastVisibleUserIndex !== currentUserMessageIndex) {
+        setCurrentUserMessageIndex(lastVisibleUserIndex)
+      }
+    }
+
+    container.addEventListener('scroll', updateCurrentIndex)
+    updateCurrentIndex()
+    
+    return () => {
+      container.removeEventListener('scroll', updateCurrentIndex)
+    }
+  }, [messages, currentUserMessageIndex])
+
+  /**
    * 监听滚动事件
    */
   useEffect(() => {
@@ -445,7 +501,15 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
   }, [handleScroll, messages.length])
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white relative">
+      {/* 问题导航组件 */}
+      {messages.length > 0 && (
+        <QuestionNavigator
+          messages={messages}
+          onJumpToMessage={handleJumpToMessage}
+          currentUserMessageIndex={currentUserMessageIndex}
+        />
+      )}
       {/* 聊天内容区域 */}
       <div className="flex-1 relative overflow-hidden">
         <div 
@@ -501,7 +565,13 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
               const isPreviousUserMessage = prevMessage?.role === 'user'
               
               return (
-                <div key={message.id} className="mb-10 animate-fade-in">
+                <div 
+                  key={message.id} 
+                  ref={(el) => {
+                    messageRefs.current[index] = el
+                  }}
+                  className="mb-10 animate-fade-in"
+                >
                   <div className={`flex gap-4 ${isUserMessage ? 'justify-end' : 'justify-start'}`}>
                     {isAssistantMessage && (
                       <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg">
