@@ -501,7 +501,7 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
               const isPreviousUserMessage = prevMessage?.role === 'user'
               
               return (
-                <div key={message.id} className="mb-6 animate-fade-in">
+                <div key={message.id} className="mb-10 animate-fade-in">
                   <div className={`flex gap-4 ${isUserMessage ? 'justify-end' : 'justify-start'}`}>
                     {isAssistantMessage && (
                       <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg">
@@ -560,25 +560,25 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
                       
                       {/* 用户消息的操作按钮 - 悬浮时显示在气泡下方 */}
                       {isUserMessage && editingMessageId !== message.id && (
-                        <div className="absolute -bottom-12 right-0 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+                        <div className="absolute -bottom-9 right-0 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
                           <button
                             onClick={() => handleCopyMessage(message.id, message.content)}
-                            className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-200 rounded-full shadow-lg hover:bg-gray-50 hover:border-gray-300 hover:shadow-xl transition-all text-xs text-gray-700 whitespace-nowrap flex-shrink-0"
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded-full shadow-md hover:bg-gray-50 hover:border-gray-300 hover:shadow-lg transition-all text-xs text-gray-700 whitespace-nowrap flex-shrink-0"
                             title="复制"
                           >
                             {copiedMessageId === message.id ? (
-                              <Check className="w-3.5 h-3.5 text-green-600" />
+                              <Check className="w-3 h-3 text-green-600" />
                             ) : (
-                              <Copy className="w-3.5 h-3.5" />
+                              <Copy className="w-3 h-3" />
                             )}
                             {copiedMessageId === message.id ? '已复制' : '复制'}
                           </button>
                           <button
                             onClick={() => handleStartEditMessage(message.id, message.content)}
-                            className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-200 rounded-full shadow-lg hover:bg-gray-50 hover:border-gray-300 hover:shadow-xl transition-all text-xs text-gray-700 whitespace-nowrap flex-shrink-0"
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded-full shadow-md hover:bg-gray-50 hover:border-gray-300 hover:shadow-lg transition-all text-xs text-gray-700 whitespace-nowrap flex-shrink-0"
                             title="改写"
                           >
-                            <Edit2 className="w-3.5 h-3.5" />
+                            <Edit2 className="w-3 h-3" />
                             改写
                           </button>
                         </div>
@@ -586,16 +586,16 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
                       
                       {/* AI 回答的操作按钮 - 悬浮时显示在气泡下方 */}
                       {isAssistantMessage && (
-                        <div className="absolute -bottom-12 left-0 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+                        <div className="absolute -bottom-9 left-0 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
                           <button
                             onClick={() => handleCopyMessage(message.id, message.content)}
-                            className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-200 rounded-full shadow-lg hover:bg-gray-50 hover:border-gray-300 hover:shadow-xl transition-all text-xs text-gray-700 whitespace-nowrap flex-shrink-0"
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded-full shadow-md hover:bg-gray-50 hover:border-gray-300 hover:shadow-lg transition-all text-xs text-gray-700 whitespace-nowrap flex-shrink-0"
                             title="复制"
                           >
                             {copiedMessageId === message.id ? (
-                              <Check className="w-3.5 h-3.5 text-green-600" />
+                              <Check className="w-3 h-3 text-green-600" />
                             ) : (
-                              <Copy className="w-3.5 h-3.5" />
+                              <Copy className="w-3 h-3" />
                             )}
                             {copiedMessageId === message.id ? '已复制' : '复制'}
                           </button>
@@ -603,10 +603,10 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
                             <button
                               onClick={() => handleRegenerateMessage(message.id, index - 1)}
                               disabled={isRegenerating}
-                              className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-200 rounded-full shadow-lg hover:bg-gray-50 hover:border-gray-300 hover:shadow-xl transition-all text-xs text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded-full shadow-md hover:bg-gray-50 hover:border-gray-300 hover:shadow-lg transition-all text-xs text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
                               title="重新生成"
                             >
-                              <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? 'animate-spin' : ''}`} />
+                              <RefreshCw className={`w-3 h-3 ${isRegenerating ? 'animate-spin' : ''}`} />
                               重新生成
                             </button>
                           )}
@@ -639,18 +639,18 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
             <div ref={messagesEndRef} />
           </div>
         )}
-
-          {/* 滚动到底部按钮 - 固定在可视区域右下角 */}
-          {showScrollToBottom && messages.length > 0 && (
-            <button
-              onClick={scrollToBottom}
-              className="absolute bottom-4 right-8 w-10 h-10 bg-white border border-gray-200 rounded-full shadow-lg flex items-center justify-center text-gray-600 hover:text-blue-600 hover:border-blue-300 hover:shadow-xl transition-all duration-200 z-10"
-              title="滚动到底部"
-            >
-              <ArrowDown className="w-5 h-5" />
-            </button>
-          )}
         </div>
+
+        {/* 滚动到底部按钮 - 固定在可视区域右下角 */}
+        {showScrollToBottom && messages.length > 0 && (
+          <button
+            onClick={scrollToBottom}
+            className="absolute bottom-4 right-8 w-10 h-10 bg-white border border-gray-200 rounded-full shadow-lg flex items-center justify-center text-gray-600 hover:text-blue-600 hover:border-blue-300 hover:shadow-xl transition-all duration-200 z-10"
+            title="滚动到底部"
+          >
+            <ArrowDown className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       {/* 输入区域 */}
