@@ -110,36 +110,68 @@ class ApiService {
       
       buffer += decoder.decode(value, { stream: true })
       
+      // SSE 消息以双换行符分隔
+      const messages = buffer.split('\n\n')
+      buffer = messages.pop() || ''
+      
+      for (const message of messages) {
+        const lines = message.split('\n')
+        let dataLine = ''
+        
+        for (const line of lines) {
+          const trimmedLine = line.trim()
+          if (trimmedLine.startsWith('data:')) {
+            dataLine = trimmedLine.substring(5).trim()
+          }
+        }
+        
+        if (!dataLine) continue
+        
+        try {
+          const data = JSON.parse(dataLine)
+          
+          if (data.messageType === 'continue' && data.content) {
+            yield data.content
+          } else if (data.messageType === 'complete') {
+            return
+          } else if (data.content) {
+            yield data.content
+          }
+        } catch {
+          // JSON 解析失败，尝试正则匹配
+          const match = dataLine.match(/"content"\s*:\s*"([^"]*)"/)
+          if (match && match[1]) {
+            yield match[1]
+          }
+        }
+      }
+    }
+    
+    // 处理剩余的 buffer
+    if (buffer.trim()) {
       const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
+      let dataLine = ''
       
       for (const line of lines) {
         const trimmedLine = line.trim()
-        if (!trimmedLine) continue
-
         if (trimmedLine.startsWith('data:')) {
-          try {
-            let jsonStr = trimmedLine.substring(5).trim()
-            
-            const data = JSON.parse(jsonStr)
-            
-            if (data.messageType === 'continue' && data.content) {
-              yield data.content
-            } else if (data.messageType === 'complete') {
-              return
-            } else if (data.content) {
-              yield data.content
-            }
-          } catch {
-            const match = trimmedLine.match(/"content"\s*:\s*"([^"]*)"/)
-            if (match && match[1]) {
-              yield match[1]
-            }
+          dataLine = trimmedLine.substring(5).trim()
+        }
+      }
+      
+      if (dataLine) {
+        try {
+          const data = JSON.parse(dataLine)
+          if (data.messageType === 'continue' && data.content) {
+            yield data.content
+          } else if (data.content) {
+            yield data.content
           }
-        } else if (trimmedLine.startsWith('event:')) {
-          continue
-        } else if (!trimmedLine.startsWith(':') && trimmedLine.length > 0) {
-          yield trimmedLine
+        } catch {
+          const match = dataLine.match(/"content"\s*:\s*"([^"]*)"/)
+          if (match && match[1]) {
+            yield match[1]
+          }
         }
       }
     }
@@ -195,36 +227,68 @@ class ApiService {
       
       buffer += decoder.decode(value, { stream: true })
       
+      // SSE 消息以双换行符分隔
+      const messages = buffer.split('\n\n')
+      buffer = messages.pop() || ''
+      
+      for (const message of messages) {
+        const lines = message.split('\n')
+        let dataLine = ''
+        
+        for (const line of lines) {
+          const trimmedLine = line.trim()
+          if (trimmedLine.startsWith('data:')) {
+            dataLine = trimmedLine.substring(5).trim()
+          }
+        }
+        
+        if (!dataLine) continue
+        
+        try {
+          const data = JSON.parse(dataLine)
+          
+          if (data.messageType === 'continue' && data.content) {
+            yield data.content
+          } else if (data.messageType === 'complete') {
+            return
+          } else if (data.content) {
+            yield data.content
+          }
+        } catch {
+          // JSON 解析失败，尝试正则匹配
+          const match = dataLine.match(/"content"\s*:\s*"([^"]*)"/)
+          if (match && match[1]) {
+            yield match[1]
+          }
+        }
+      }
+    }
+    
+    // 处理剩余的 buffer
+    if (buffer.trim()) {
       const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
+      let dataLine = ''
       
       for (const line of lines) {
         const trimmedLine = line.trim()
-        if (!trimmedLine) continue
-
         if (trimmedLine.startsWith('data:')) {
-          try {
-            let jsonStr = trimmedLine.substring(5).trim()
-            
-            const data = JSON.parse(jsonStr)
-            
-            if (data.messageType === 'continue' && data.content) {
-              yield data.content
-            } else if (data.messageType === 'complete') {
-              return
-            } else if (data.content) {
-              yield data.content
-            }
-          } catch {
-            const match = trimmedLine.match(/"content"\s*:\s*"([^"]*)"/)
-            if (match && match[1]) {
-              yield match[1]
-            }
+          dataLine = trimmedLine.substring(5).trim()
+        }
+      }
+      
+      if (dataLine) {
+        try {
+          const data = JSON.parse(dataLine)
+          if (data.messageType === 'continue' && data.content) {
+            yield data.content
+          } else if (data.content) {
+            yield data.content
           }
-        } else if (trimmedLine.startsWith('event:')) {
-          continue
-        } else if (!trimmedLine.startsWith(':') && trimmedLine.length > 0) {
-          yield trimmedLine
+        } catch {
+          const match = dataLine.match(/"content"\s*:\s*"([^"]*)"/)
+          if (match && match[1]) {
+            yield match[1]
+          }
         }
       }
     }

@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { flushSync } from 'react-dom'
 import { Bot, User, Send, Loader2, RefreshCw, Paperclip, X, FileText, Plus, Globe, BookOpen, Copy, Check, Edit2, ArrowDown } from 'lucide-react'
 import type { ChatMessage } from '../types/chat'
 import { MarkdownRenderer } from './MarkdownRenderer'
@@ -104,6 +105,13 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
   }, [])
 
   /**
+   * 滚动到底部
+   */
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [])
+
+  /**
    * 发送消息
    */
   const handleSendMessage = useCallback(async () => {
@@ -148,13 +156,18 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
       
       for await (const chunk of stream) {
         accumulatedContent += chunk
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantMessageId
-              ? { ...msg, content: accumulatedContent }
-              : msg
+        // 使用 flushSync 强制同步更新，确保流式内容实时渲染
+        flushSync(() => {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMessageId
+                ? { ...msg, content: accumulatedContent }
+                : msg
+            )
           )
-        )
+        })
+        // 流式更新时滚动到底部
+        scrollToBottom()
       }
     } catch (error) {
       console.error('Stream error:', error)
@@ -168,7 +181,7 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [inputText, uploadedFiles, isLoading, tools])
+  }, [inputText, uploadedFiles, isLoading, tools, scrollToBottom])
 
   /**
    * 开始新对话
@@ -261,7 +274,7 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
   /**
    * 保存编辑后的用户消息
    */
-  const handleSaveEditMessage = useCallback(async (messageId: string, messageIndex: number) => {
+  const handleSaveEditMessage = useCallback(async (_messageId: string, messageIndex: number) => {
     if (!editInputText.trim()) return
     
     // 更新当前消息内容
@@ -308,13 +321,18 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
       for await (const chunk of stream) {
         accumulatedContent += chunk
         
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === newAssistantMessageId
-              ? { ...msg, content: accumulatedContent }
-              : msg
+        // 使用 flushSync 强制同步更新，确保流式内容实时渲染
+        flushSync(() => {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === newAssistantMessageId
+                ? { ...msg, content: accumulatedContent }
+                : msg
+            )
           )
-        )
+        })
+        // 流式更新时滚动到底部
+        scrollToBottom()
       }
     } catch (error) {
       console.error('Stream error:', error)
@@ -328,7 +346,7 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [editInputText, tools])
+  }, [editInputText, tools, scrollToBottom])
 
   /**
    * 重新生成 AI 回答
@@ -370,13 +388,18 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
       for await (const chunk of stream) {
         accumulatedContent += chunk
         
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === newAssistantMessageId
-              ? { ...msg, content: accumulatedContent }
-              : msg
+        // 使用 flushSync 强制同步更新，确保流式内容实时渲染
+        flushSync(() => {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === newAssistantMessageId
+                ? { ...msg, content: accumulatedContent }
+                : msg
+            )
           )
-        )
+        })
+        // 流式更新时滚动到底部
+        scrollToBottom()
       }
     } catch (error) {
       console.error('Stream error:', error)
@@ -391,7 +414,7 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
       setIsLoading(false)
       setRegeneratingMessageId(null)
     }
-  }, [isLoading, messages, tools])
+  }, [isLoading, messages, tools, scrollToBottom])
 
   /**
    * 保存消息到 localStorage
@@ -414,13 +437,6 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
     const { scrollTop, scrollHeight, clientHeight } = container
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 100
     setShowScrollToBottom(!isNearBottom)
-  }, [])
-
-  /**
-   * 滚动到底部
-   */
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
 
   /**
@@ -451,37 +467,61 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
     const container = messagesContainerRef.current
     if (!container || messages.length === 0) return
 
+    let rafId: number | null = null
+    
     const updateCurrentIndex = () => {
-      const containerRect = container.getBoundingClientRect()
-      const containerCenter = containerRect.top + containerRect.height / 2
+      if (rafId) {
+        cancelAnimationFrame(rafId)
+      }
       
-      let lastVisibleUserIndex = -1
-      let userMsgCount = 0
-      
-      for (let i = 0; i < messages.length; i++) {
-        const msg = messages[i]
-        if (msg.role === 'user') {
-          const ref = messageRefs.current[i]
-          if (ref) {
-            const rect = ref.getBoundingClientRect()
-            if (rect.top <= containerCenter) {
-              lastVisibleUserIndex = userMsgCount
+      rafId = requestAnimationFrame(() => {
+        const containerRect = container.getBoundingClientRect()
+        const viewportTop = containerRect.top
+        const viewportBottom = containerRect.bottom
+        const viewportCenter = viewportTop + containerRect.height / 2
+        
+        let closestUserIndex = 0
+        let smallestDistance = Infinity
+        let userMsgCount = 0
+        
+        // 找出所有用户消息并计算哪个最靠近视口中心
+        for (let i = 0; i < messages.length; i++) {
+          const msg = messages[i]
+          if (msg.role === 'user') {
+            const ref = messageRefs.current[i]
+            if (ref) {
+              const rect = ref.getBoundingClientRect()
+              const messageCenter = rect.top + rect.height / 2
+              const distance = Math.abs(messageCenter - viewportCenter)
+              
+              // 如果消息在视口内，优先选择
+              const isInViewport = rect.bottom >= viewportTop && rect.top <= viewportBottom
+              const adjustedDistance = isInViewport ? distance : distance + 10000
+              
+              if (adjustedDistance < smallestDistance) {
+                smallestDistance = adjustedDistance
+                closestUserIndex = userMsgCount
+              }
             }
+            userMsgCount++
           }
-          userMsgCount++
         }
-      }
-      
-      if (lastVisibleUserIndex >= 0 && lastVisibleUserIndex !== currentUserMessageIndex) {
-        setCurrentUserMessageIndex(lastVisibleUserIndex)
-      }
+        
+        // 如果没有找到，默认显示最后一条
+        if (closestUserIndex !== currentUserMessageIndex) {
+          setCurrentUserMessageIndex(closestUserIndex)
+        }
+      })
     }
 
-    container.addEventListener('scroll', updateCurrentIndex)
+    container.addEventListener('scroll', updateCurrentIndex, { passive: true })
     updateCurrentIndex()
     
     return () => {
       container.removeEventListener('scroll', updateCurrentIndex)
+      if (rafId) {
+        cancelAnimationFrame(rafId)
+      }
     }
   }, [messages, currentUserMessageIndex])
 
@@ -499,6 +539,15 @@ export function SmartChat({ onNewConversation }: SmartChatProps) {
       container.removeEventListener('scroll', handleScroll)
     }
   }, [handleScroll, messages.length])
+
+  /**
+   * 监听消息变化，自动滚动到底部
+   */
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToBottom()
+    }
+  }, [messages.length, scrollToBottom])
 
   return (
     <div className="flex flex-col h-full bg-white relative">
