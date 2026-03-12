@@ -40,6 +40,19 @@ export function LegalSearch() {
   }, [streamContent])
 
   /**
+   * 获取问题类型参数
+   * 将前端过滤类型映射为后端需要的参数
+   */
+  const getQuestionTypeParam = useCallback((filter: typeof activeFilter): string | undefined => {
+    const typeMap: Record<string, string> = {
+      'law': '法律法规',
+      'case': '司法案例',
+      'regulation': '行政法规',
+    }
+    return typeMap[filter]
+  }, [])
+
+  /**
    * 执行法律检索（流式响应）
    */
   const handleSearch = useCallback(async () => {
@@ -51,12 +64,13 @@ export function LegalSearch() {
     setResults([])
 
     const sessionId = apiService.generateSessionId()
+    const questionType = getQuestionTypeParam(activeFilter)
 
     try {
       abortControllerRef.current = new AbortController()
       let fullContent = ''
 
-      for await (const chunk of apiService.streamLegalSearch(query, sessionId)) {
+      for await (const chunk of apiService.streamLegalSearch(query, sessionId, questionType)) {
         fullContent += chunk
         setStreamContent(fullContent)
       }
@@ -74,7 +88,7 @@ export function LegalSearch() {
       setIsSearching(false)
       abortControllerRef.current = null
     }
-  }, [query])
+  }, [query, activeFilter, getQuestionTypeParam])
 
   /**
    * 停止检索

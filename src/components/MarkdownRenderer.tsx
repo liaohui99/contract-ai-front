@@ -1,6 +1,8 @@
+import { memo, useState, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
+import { ImageIcon, Brain, ChevronDown, ChevronRight } from 'lucide-react'
 import 'highlight.js/styles/github-dark.css'
 
 interface MarkdownRendererProps {
@@ -8,21 +10,140 @@ interface MarkdownRendererProps {
   className?: string
 }
 
+interface ThinkingBlock {
+  content: string
+  id: string
+}
+
+/**
+ * 提取 thinking 标签内容
+ * @param content 原始内容
+ * @returns thinking 块数组和清理后的内容
+ */
+function extractThinkingBlocks(content: string): { thinkingBlocks: ThinkingBlock[], cleanedContent: string } {
+  const thinkingBlocks: ThinkingBlock[] = []
+  const thinkingRegex = /<thinking>([\s\S]*?)<\/thinking>/gi
+  
+  let match
+  let index = 0
+  while ((match = thinkingRegex.exec(content)) !== null) {
+    thinkingBlocks.push({
+      content: match[1].trim(),
+      id: `thinking-${index++}`
+    })
+  }
+  
+  const cleanedContent = content.replace(thinkingRegex, '').trim()
+  
+  return { thinkingBlocks, cleanedContent }
+}
+
+/**
+ * 思考块组件
+ * 可折叠的思考内容展示区域
+ */
+const ThinkingBlockComponent = memo(function ThinkingBlockComponent({ content }: { content: string }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  const toggleExpand = useCallback(() => {
+    setIsExpanded(prev => !prev)
+  }, [])
+
+  return (
+    <div className="thinking-block">
+      <button
+        onClick={toggleExpand}
+        className="thinking-header"
+        aria-expanded={isExpanded}
+      >
+        <Brain className="thinking-icon" />
+        <span className="thinking-title">思考过程</span>
+        {isExpanded ? (
+          <ChevronDown className="thinking-chevron" />
+        ) : (
+          <ChevronRight className="thinking-chevron" />
+        )}
+      </button>
+      {isExpanded && (
+        <div className="thinking-content">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              p({ children }: any) {
+                return <p className="thinking-paragraph">{children}</p>
+              },
+              ul({ children }: any) {
+                return <ul className="thinking-list">{children}</ul>
+              },
+              ol({ children }: any) {
+                return <ol className="thinking-list ordered">{children}</ol>
+              },
+              li({ children }: any) {
+                return <li className="thinking-list-item">{children}</li>
+              },
+            }}
+          >
+            {content}
+          </ReactMarkdown>
+        </div>
+      )}
+    </div>
+  )
+})
+
+/**
+ * Markdown 图片组件
+ * 处理图片加载失败的情况，显示占位符
+ */
+const MarkdownImage = memo(function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
+  const [hasError, setHasError] = useState(false)
+
+  const handleError = useCallback(() => {
+    setHasError(true)
+  }, [])
+
+  if (hasError || !src) {
+    return (
+      <div className="markdown-image-fallback">
+        <ImageIcon className="w-8 h-8 text-gray-400" />
+        <span className="text-sm text-gray-500 mt-2">{alt || '图片加载失败'}</span>
+      </div>
+    )
+  }
+
+  return (
+    <img 
+      src={src} 
+      alt={alt || ''} 
+      className="markdown-image" 
+      onError={handleError}
+      loading="lazy"
+    />
+  )
+})
+
 /**
  * Markdown 渲染组件
  * 支持代码高亮、表格、列表等常见 Markdown 语法
  * 优化了换行符处理，避免过大的段落间距
+ * 支持 thinking 标签的单独渲染
  */
-export function MarkdownRenderer({ content, className = '' }: MarkdownRendererProps) {
-  // 预处理内容：
-  // 1. 将字面量的 \n 转换为真正的换行符
-  // 2. 将多个连续换行符压缩为两个换行符（保留段落分隔）
-  const processedContent = content
+export const MarkdownRenderer = memo(function MarkdownRenderer({ content, className = '' }: MarkdownRendererProps) {
+  const { thinkingBlocks, cleanedContent } = extractThinkingBlocks(content)
+  
+  const processedContent = cleanedContent
     .replace(/\\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
   
   return (
     <div className={`markdown-content ${className}`}>
+      {thinkingBlocks.length > 0 && (
+        <div className="thinking-blocks-container">
+          {thinkingBlocks.map((block) => (
+            <ThinkingBlockComponent key={block.id} content={block.content} />
+          ))}
+        </div>
+      )}
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
@@ -104,7 +225,7 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
             return <em className="markdown-emphasis">{children}</em>
           },
           img({ src, alt }: any) {
-            return <img src={src} alt={alt} className="markdown-image" />
+            return <MarkdownImage src={src} alt={alt} />
           },
         }}
       >
@@ -112,4 +233,4 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
       </ReactMarkdown>
     </div>
   )
-}
+})

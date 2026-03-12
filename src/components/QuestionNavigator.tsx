@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react'
 import { cn } from '../lib/utils'
 import type { ChatMessage } from '../types/chat'
 
@@ -12,7 +12,7 @@ interface QuestionNavigatorProps {
  * 问题导航组件
  * 用于快速定位和跳转到历史用户问题
  */
-export function QuestionNavigator({ 
+export const QuestionNavigator = memo(function QuestionNavigator({ 
   messages, 
   onJumpToMessage,
   currentUserMessageIndex
@@ -22,8 +22,7 @@ export function QuestionNavigator({
   const containerRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
-  // 过滤出所有用户消息
-  const userMessages = messages.filter((msg) => msg.role === 'user')
+  const userMessages = useMemo(() => messages.filter((msg) => msg.role === 'user'), [messages])
 
   // 获取原始索引
   const getUserMessageOriginalIndex = (userMsgIndex: number) => {
@@ -220,4 +219,4 @@ export function QuestionNavigator({
       </div>
     </div>
   )
-}
+})

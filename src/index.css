@@ -262,6 +262,114 @@
   border-bottom-color: var(--color-primary);
 }
 
+.markdown-content .markdown-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  margin: 1em 0;
+  display: block;
+}
+
+.markdown-content .markdown-image-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2em;
+  background: var(--muted);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  margin: 1em 0;
+  min-height: 120px;
+}
+
+.thinking-blocks-container {
+  margin-bottom: 1.5em;
+}
+
+.thinking-block {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #8b5cf6;
+  border-radius: 0.75rem;
+  margin-bottom: 1em;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.thinking-block:hover {
+  border-color: #c4b5fd;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.1);
+}
+
+.thinking-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: left;
+}
+
+.thinking-header:hover {
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.thinking-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #8b5cf6;
+  flex-shrink: 0;
+}
+
+.thinking-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #7c3aed;
+  flex: 1;
+}
+
+.thinking-chevron {
+  width: 1rem;
+  height: 1rem;
+  color: #a78bfa;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.thinking-content {
+  padding: 0 1rem 1rem 1rem;
+  border-top: 1px solid #e2e8f0;
+  background: rgba(139, 92, 246, 0.02);
+}
+
+.thinking-paragraph {
+  margin: 0.75em 0;
+  line-height: 1.7;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.thinking-list {
+  margin: 0.75em 0;
+  padding-left: 1.5em;
+}
+
+.thinking-list.ordered {
+  list-style-type: decimal;
+}
+
+.thinking-list-item {
+  margin: 0.5em 0;
+  line-height: 1.7;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

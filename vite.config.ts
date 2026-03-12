@@ -10,9 +10,11 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0',
+    port: 5173,
     proxy: {
       '/taorunhui': {
-        target: 'http://127.0.0.1:7341',
+        target: 'http://192.168.110.244:7341',
         changeOrigin: true,
         secure: false,
         configure: (proxy) => {

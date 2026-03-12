@@ -110,68 +110,45 @@ class ApiService {
       
       buffer += decoder.decode(value, { stream: true })
       
-      // SSE 消息以双换行符分隔
-      const messages = buffer.split('\n\n')
-      buffer = messages.pop() || ''
-      
-      for (const message of messages) {
-        const lines = message.split('\n')
-        let dataLine = ''
-        
-        for (const line of lines) {
-          const trimmedLine = line.trim()
-          if (trimmedLine.startsWith('data:')) {
-            dataLine = trimmedLine.substring(5).trim()
-          }
-        }
-        
-        if (!dataLine) continue
-        
-        try {
-          const data = JSON.parse(dataLine)
-          
-          if (data.messageType === 'continue' && data.content) {
-            yield data.content
-          } else if (data.messageType === 'complete') {
-            return
-          } else if (data.content) {
-            yield data.content
-          }
-        } catch {
-          // JSON 解析失败，尝试正则匹配
-          const match = dataLine.match(/"content"\s*:\s*"([^"]*)"/)
-          if (match && match[1]) {
-            yield match[1]
-          }
-        }
-      }
-    }
-    
-    // 处理剩余的 buffer
-    if (buffer.trim()) {
       const lines = buffer.split('\n')
-      let dataLine = ''
+      buffer = lines.pop() || ''
       
       for (const line of lines) {
         const trimmedLine = line.trim()
-        if (trimmedLine.startsWith('data:')) {
-          dataLine = trimmedLine.substring(5).trim()
-        }
-      }
-      
-      if (dataLine) {
-        try {
-          const data = JSON.parse(dataLine)
-          if (data.messageType === 'continue' && data.content) {
-            yield data.content
-          } else if (data.content) {
-            yield data.content
+        if (!trimmedLine) continue
+
+        if (trimmedLine.startsWith('event:data')) {
+          const content = trimmedLine.substring(10).trim()
+          if (content) {
+            yield content
           }
-        } catch {
-          const match = dataLine.match(/"content"\s*:\s*"([^"]*)"/)
-          if (match && match[1]) {
-            yield match[1]
+        } else if (trimmedLine.startsWith('data:')) {
+          try {
+            let jsonStr = trimmedLine.substring(5).trim()
+
+            jsonStr = jsonStr
+              .replace(/\\\\/g, '\\\\')
+              .replace(/\\([^"\\])/g, '\\$1')
+
+            const data = JSON.parse(jsonStr)
+
+            if (data.messageType === 'continue' && data.content) {
+              yield data.content
+            } else if (data.messageType === 'complete') {
+              break
+            } else if (data.content) {
+              yield data.content
+            }
+          } catch {
+            const match = trimmedLine.match(/"content":"([^"]*)"/)
+            if (match && match[1]) {
+              yield match[1]
+            }
           }
+        } else if (trimmedLine.startsWith('event:')) {
+          continue
+        } else if (!trimmedLine.startsWith(':')) {
+          yield trimmedLine
         }
       }
     }
@@ -188,6 +165,7 @@ class ApiService {
     knowledgeBase: boolean = false
   ): AsyncGenerator<string> {
     const url = `${API_PREFIX}/ai/simple/chat`
+    console.log('[streamMessageWithFiles] Starting stream request...')
     
     const formData = new FormData()
     formData.append('question', question)
@@ -219,76 +197,66 @@ class ApiService {
     }
 
     let buffer = ''
+    let chunkCount = 0
 
     while (true) {
       const { done, value } = await reader.read()
       
-      if (done) break
-      
-      buffer += decoder.decode(value, { stream: true })
-      
-      // SSE 消息以双换行符分隔
-      const messages = buffer.split('\n\n')
-      buffer = messages.pop() || ''
-      
-      for (const message of messages) {
-        const lines = message.split('\n')
-        let dataLine = ''
-        
-        for (const line of lines) {
-          const trimmedLine = line.trim()
-          if (trimmedLine.startsWith('data:')) {
-            dataLine = trimmedLine.substring(5).trim()
-          }
-        }
-        
-        if (!dataLine) continue
-        
-        try {
-          const data = JSON.parse(dataLine)
-          
-          if (data.messageType === 'continue' && data.content) {
-            yield data.content
-          } else if (data.messageType === 'complete') {
-            return
-          } else if (data.content) {
-            yield data.content
-          }
-        } catch {
-          // JSON 解析失败，尝试正则匹配
-          const match = dataLine.match(/"content"\s*:\s*"([^"]*)"/)
-          if (match && match[1]) {
-            yield match[1]
-          }
-        }
+      if (done) {
+        console.log('[streamMessageWithFiles] Stream done, total chunks:', chunkCount)
+        break
       }
-    }
-    
-    // 处理剩余的 buffer
-    if (buffer.trim()) {
+      
+      const decodedChunk = decoder.decode(value, { stream: true })
+      console.log('[streamMessageWithFiles] Raw chunk #' + (++chunkCount) + ':', decodedChunk.substring(0, 100))
+      buffer += decodedChunk
+      
       const lines = buffer.split('\n')
-      let dataLine = ''
+      buffer = lines.pop() || ''
       
       for (const line of lines) {
         const trimmedLine = line.trim()
-        if (trimmedLine.startsWith('data:')) {
-          dataLine = trimmedLine.substring(5).trim()
-        }
-      }
-      
-      if (dataLine) {
-        try {
-          const data = JSON.parse(dataLine)
-          if (data.messageType === 'continue' && data.content) {
-            yield data.content
-          } else if (data.content) {
-            yield data.content
+        if (!trimmedLine) continue
+
+        if (trimmedLine.startsWith('event:data')) {
+          const content = trimmedLine.substring(10).trim()
+          if (content) {
+            console.log('[streamMessageWithFiles] Yielding from event:data:', content)
+            yield content
           }
-        } catch {
-          const match = dataLine.match(/"content"\s*:\s*"([^"]*)"/)
-          if (match && match[1]) {
-            yield match[1]
+        } else if (trimmedLine.startsWith('data:')) {
+          try {
+            let jsonStr = trimmedLine.substring(5).trim()
+
+            jsonStr = jsonStr
+              .replace(/\\\\/g, '\\\\')
+              .replace(/\\([^"\\])/g, '\\$1')
+
+            const data = JSON.parse(jsonStr)
+            console.log('[streamMessageWithFiles] Parsed JSON:', data)
+
+            if (data.messageType === 'continue' && data.content) {
+              console.log('[streamMessageWithFiles] Yielding content:', data.content)
+              yield data.content
+            } else if (data.messageType === 'complete') {
+              console.log('[streamMessageWithFiles] Complete message received')
+              break
+            } else if (data.content) {
+              console.log('[streamMessageWithFiles] Yielding fallback content:', data.content)
+              yield data.content
+            }
+          } catch {
+            const match = trimmedLine.match(/"content":"([^"]*)"/)
+            if (match && match[1]) {
+              console.log('[streamMessageWithFiles] Yielding from regex:', match[1])
+              yield match[1]
+            }
           }
+        } else if (trimmedLine.startsWith('event:')) {
+          continue
+        } else if (!trimmedLine.startsWith(':')) {
+          console.log('[streamMessageWithFiles] Yielding raw line:', trimmedLine)
+          yield trimmedLine
         }
       }
     }
@@ -332,9 +300,20 @@ class ApiService {
 
   /**
    * 流式发送法律检索请求（POST方式，参数在URL中）
+   * @param question 检索问题
+   * @param sessionId 会话ID
+   * @param questionType 问题类型（法律法规、司法案例、行政法规等）
    */
-  async *streamLegalSearch(question: string, sessionId: string): AsyncGenerator<string> {
-    const url = `${API_PREFIX}/ai/farui/chat?question=${encodeURIComponent(question)}&sessionId=${sessionId}`
+  async *streamLegalSearch(
+    question: string, 
+    sessionId: string, 
+    questionType?: string
+  ): AsyncGenerator<string> {
+    let url = `${API_PREFIX}/ai/farui/chat?question=${encodeURIComponent(question)}&sessionId=${sessionId}`
+    
+    if (questionType && questionType !== 'all') {
+      url += `&questionType=${encodeURIComponent(questionType)}`
+    }
 
     const response = await fetch(url, {
       method: 'POST',
