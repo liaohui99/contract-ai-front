@@ -233,4 +233,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({ content, classN
       </ReactMarkdown>
     </div>
   )
+}, (prevProps, nextProps) => {
+  // 自定义比较函数：只有当 content 和 className 都相同时才跳过重渲染
+  return prevProps.content === nextProps.content && prevProps.className === nextProps.className
 })

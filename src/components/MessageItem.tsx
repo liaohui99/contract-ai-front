@@ -25,6 +25,7 @@ interface MessageItemProps {
 /**
  * 消息项组件
  * 使用 memo 优化避免不必要的重渲染
+ * 自定义比较函数确保 content 变化时能正确重渲染
  */
 export const MessageItem = memo(function MessageItem({
   message,
@@ -44,8 +45,8 @@ export const MessageItem = memo(function MessageItem({
   onSetEditInputText,
   setMessageRef,
 }: MessageItemProps) {
-  const isShowingLoading = isLoading && isLastMessage && message.role === 'assistant'
-  
+  const isShowingLoading = isLoading && isLastMessage && message.role === 'assistant' && !message.content
+
   if (isShowingLoading) return null
   
   const isUserMessage = message.role === 'user'
@@ -126,5 +127,19 @@ export const MessageItem = memo(function MessageItem({
         )}
       </div>
     </div>
+  )
+}, (prevProps, nextProps) => {
+  // 自定义比较函数：只有当关键属性都相同时才跳过重渲染
+  // 特别检查 message.content 以支持流式更新
+  return (
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.message.role === nextProps.message.role &&
+    prevProps.isLoading === nextProps.isLoading &&
+    prevProps.isLastMessage === nextProps.isLastMessage &&
+    prevProps.regeneratingMessageId === nextProps.regeneratingMessageId &&
+    prevProps.editingMessageId === nextProps.editingMessageId &&
+    prevProps.editInputText === nextProps.editInputText &&
+    prevProps.copiedMessageId === nextProps.copiedMessageId
   )
 })
